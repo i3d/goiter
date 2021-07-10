@@ -2,6 +2,7 @@ package iter
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
@@ -66,4 +67,58 @@ func TestInto(t *testing.T) {
 	if ints.data[0] != 1 || ints.data[1] != 2 || ints.data[2] != 3 {
 		t.Errorf("Into conversion is invalid, got: %+v, want: []int{1,2,3}", ints.data)
 	}
+}
+
+func BenchmarkEach(b *testing.B) {
+	s := []string{"abc", "abd", "bcd"}
+	it := New(FromStrings(s))
+
+	each := func() {
+		it.Each(func(v interface{}) {
+			/* no i/o dep */
+			_ = v.(string)
+		})
+	}
+	forloop := func() {
+		for i := 0; i < len(s); i++ {
+			_ = s[i]
+		}
+	}
+
+	tests := []struct {
+		desc string
+		run  func()
+	}{
+		{"each", each},
+		{"loop", forloop},
+	}
+
+	for _, tc := range tests {
+		b.Run(tc.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				tc.run()
+			}
+		})
+	}
+
+	// Now setup a rather large random bits []string.
+	n := 1 << 16
+	const bitSize = 128
+	s = s[:0]
+	for i := 0; i < n; i++ {
+		p := make([]byte, 0, bitSize)
+		rand.Read(p)
+		s = append(s, string(p))
+	}
+
+	it = New(FromStrings(s))
+
+	for _, tc := range tests {
+		b.Run(tc.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				tc.run()
+			}
+		})
+	}
+
 }

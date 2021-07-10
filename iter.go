@@ -10,7 +10,6 @@ package iter
 
 import (
 	"fmt"
-	"sync/atomic"
 )
 
 // Iterable is capable of traversing
@@ -175,9 +174,11 @@ func (it *Iter) From(other Iterable, as ConvertFunc) *Iter {
 // some T, client will have to implement on thir own.
 
 // IterStrings implements Iterable API for []string.
+// IterStrings itself is not thread-safe.
 type IterStrings struct {
-	idx  int32
+	idx  int
 	data []string
+	size int
 }
 
 // NewIterStrings creates a new empty IterStrings struct.
@@ -187,7 +188,7 @@ func NewIterStrings() *IterStrings {
 
 // FromStrings creates a new IterStrings from a []string.
 func FromStrings(s []string) *IterStrings {
-	return &IterStrings{idx: -1, data: s}
+	return &IterStrings{idx: -1, data: s, size: len(s)}
 }
 
 // New constructs a new empty IterStrings from itself.
@@ -199,23 +200,17 @@ func (is *IterStrings) New() (Iterable, error) {
 // bool indicate whether there is any more to go. If false,
 // then this Iterator is exhausted.
 func (is *IterStrings) Next() (interface{}, bool) {
-	need := atomic.AddInt32(&is.idx, 1)
-	var more bool = true
-
-	if need > int32(len(is.data)-1) {
-		more = false
+	is.idx++
+	if is.idx < is.size {
+		return is.data[is.idx], true
 	}
-
-	if !more {
-		return nil, more
-	}
-	return is.data[need], more
+	return nil, false
 }
 
 // Rewind for IterStrings will set the Iterator to its initial
 // traversal state and ready for start from beginning again.
 func (is *IterStrings) Rewind() {
-	atomic.StoreInt32(&is.idx, -1)
+	is.idx = -1
 }
 
 // Reset sets this IterStrings to it's initial state.
@@ -223,27 +218,24 @@ func (is *IterStrings) Rewind() {
 func (is *IterStrings) Reset() {
 	is.Rewind()
 	is.data = nil
+	is.size = 0
 }
 
 // Add inserts an string as an interface into the IterStrings struct.
 func (is *IterStrings) Add(obj interface{}) {
 	input := obj.(string)
 	is.data = append(is.data, input)
+	is.size++
 }
 
 // Enumerate returns a pair of {index, string as interface}
 // as well as a bool to indicate whether there is more to go.
 func (is *IterStrings) Enumerate() (int, interface{}, bool) {
-	need := atomic.AddInt32(&is.idx, 1)
-	var more bool = true
-
-	if need > int32(len(is.data)-1) {
-		more = false
+	is.idx++
+	if is.idx < is.size {
+		return is.idx, is.data[is.idx], true
 	}
-	if !more {
-		return -1, nil, more
-	}
-	return int(need), is.data[need], more
+	return -1, nil, false
 }
 
 // String implements the Stringer interface for IterStrings.
