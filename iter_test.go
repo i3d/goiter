@@ -120,5 +120,54 @@ func BenchmarkEach(b *testing.B) {
 			}
 		})
 	}
+}
 
+func TestAdvance(t *testing.T) {
+	it := New(FromStrings([]string{"a", "b", "c"}))
+	n, more := it.Advance(2)
+	if n != 1 || !more {
+		t.Errorf("Advance(2) got index: %d and more: %t, but want: 1 and true.", n, more)
+	}
+	n, more = it.Advance(1)
+	if n != 2 || !more {
+		t.Errorf("Advance(1) after Advance(2) got index: %d and more: %t, but want: 2 and true.", n, more)
+	}
+	n, more = it.Advance(1)
+	if n != 2 || more {
+		t.Errorf("Advance(1) over the Iterator size got index: %d and more: %t, but want: 2 and false.", n, more)
+	}
+
+	// empty iter.
+	it = New(FromStrings([]string{}))
+	n, more = it.Advance(1)
+	if n != 0 || more {
+		t.Errorf("Advance(1) on an empty Iterator got index: %d and more: %t, but want: 0 and false.", n, more)
+	}
+}
+
+func TestCount(t *testing.T) {
+	tests := []struct {
+		desc string
+		it   *Iter
+		size int
+	}{
+		{"empty", New(FromStrings([]string{})), 0},
+		{"non-empty", New(FromStrings([]string{"a"})), 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := tc.it.Count()
+			if got != tc.size {
+				t.Errorf("%s got count: %d but want: %d", tc.desc, got, tc.size)
+			}
+		})
+	}
+
+	it := New(FromStrings([]string{"a"}))
+	n := it.Count()
+	m := it.Count()
+	if n != m {
+		t.Errorf("Count multiple times yield invalid value. First time: %d, second time: %d", n, m)
+	}
 }

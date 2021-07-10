@@ -41,11 +41,6 @@ type Rewinder interface {
 	Rewind()
 }
 
-// Nther can retrieve the n'th item from an Iterable.
-type Nther interface {
-	Nth(int) interface{}
-}
-
 // Resetter resets an Iterable to its initial state.
 type Resetter interface {
 	Reset()
@@ -109,14 +104,14 @@ func newFromImpl(impl *iter) *Iter {
 // and return a new Iterator that contains only items which the predicate
 // returned true.
 func (it *Iter) Filter(f FilterFunc) *Iter {
-	return newFromImpl(it.impl.Filter(f))
+	return newFromImpl(it.impl.filter(f))
 }
 
 // Map applies a given function (often mutation) against every item of
 // the Iterable and return a new Iterator contains those (often mutated)
 // items.
 func (it *Iter) Map(f MapFunc) *Iter {
-	return newFromImpl(it.impl.Map(f))
+	return newFromImpl(it.impl.apply(f))
 }
 
 // Every applies a given function (often mutation) with a pair of (index, item)
@@ -124,14 +119,40 @@ func (it *Iter) Map(f MapFunc) *Iter {
 // (often mutated) items.
 // Every requires the underlying Iterable also is an Enumerator.
 func (it *Iter) Every(f EveryFunc) *Iter {
-	return newFromImpl(it.impl.Every(f))
+	return newFromImpl(it.impl.every(f))
 }
 
 // Or applies a given predicate for every item of an Iterable. If the predicate
 // returns true, the item is not chagned, otherwise, the given item will be used
 // to replace the existing item, serving like a default value.
 func (it *Iter) Or(f FilterFunc, this interface{}) *Iter {
-	return newFromImpl(it.impl.Or(f, this))
+	return newFromImpl(it.impl.or(f, this))
+}
+
+// Advance moves the Iterator position forward by N times.
+// If the underlying struct is index-based, this means the returned
+// int points to index N-1.
+// The returned bool indicates whether the Advance has exhausted
+// the Iterator size (can it go further). If false, int guarantees
+// point to the last index, in other words, calling Next() on this Iterator
+// would be invalid. Obviously, when bool == false, int indicates the
+// size of the Iterable.
+// Example:
+//   it := New(FromStrings([]string{"a,", "b"}))
+//   it.Advance(1) => 0, true
+//   it.Advance(1) => 1, true
+//   it.Advance(1) => 1, false
+//   it.Advance(5) => 1, false
+func (it *Iter) Advance(n int) (int, bool) {
+	return it.impl.advanceBy(n)
+}
+
+// Count returns the size of the Iterator.
+// If the underlying Iterator is a Rewinder, Count will rewind the item
+// position back to previous state so the Iterator is not consumed (or can
+// be consumed again immeidately).
+func (it *Iter) Count() int {
+	return it.impl.count()
 }
 
 // Nth returns the n'th item from the Iterable.
@@ -140,7 +161,16 @@ func (it *Iter) Or(f FilterFunc, this interface{}) *Iter {
 // the Nth item, the Iterable will be rewinded and assumed to be
 // reusable immeidately.
 func (it *Iter) Nth(n int) interface{} {
-	return it.impl.Nth(n)
+	defer func() {
+		if ag, ok := it.impl.item.(Rewinder); ok {
+			ag.Rewind()
+		}
+	}()
+
+	it.impl.advanceBy(n)
+	v, _ := it.impl.item.Next()
+
+	return v
 }
 
 // Each runs a function against each item for an Iterable
@@ -149,7 +179,7 @@ func (it *Iter) Nth(n int) interface{} {
 // all items, the Iterable will be rewinded and assumed to be
 // reusable immeidately.
 func (it *Iter) Each(f EachFunc) {
-	it.impl.Each(f)
+	it.impl.each(f)
 }
 
 // Into converts self Iterable with underlying type T to another Iterable
@@ -157,14 +187,14 @@ func (it *Iter) Each(f EachFunc) {
 // If other is a Resetter, then Reset will be called, otherwise
 // assume other is clean.
 func (it *Iter) Into(target Iterable, as ConvertFunc) *Iter {
-	return newFromImpl(it.impl.Into(target, as))
+	return newFromImpl(it.impl.into(target, as))
 }
 
 // From converts other Iterable with type U to self with type T.
 // If self is a Resetter, then Reset will be called, otherwise,
 // assume clean.
 func (it *Iter) From(other Iterable, as ConvertFunc) *Iter {
-	return newFromImpl(it.impl.From(other, as))
+	return newFromImpl(it.impl.from(other, as))
 }
 
 // Iterator for []string.

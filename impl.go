@@ -7,13 +7,14 @@ import (
 
 type iter struct {
 	item Iterable
+	size int
 }
 
 func newIter(item Iterable) *iter {
-	return &iter{item}
+	return &iter{item: item}
 }
 
-func (it *iter) Filter(f FilterFunc) *iter {
+func (it *iter) filter(f FilterFunc) *iter {
 	newitem, err := it.item.New()
 	if err != nil {
 		panic(err)
@@ -31,7 +32,7 @@ func (it *iter) Filter(f FilterFunc) *iter {
 	return newIter(newitem)
 }
 
-func (it *iter) Map(f MapFunc) *iter {
+func (it *iter) apply(f MapFunc) *iter {
 	newitem, err := it.item.New()
 	if err != nil {
 		panic(err)
@@ -47,7 +48,7 @@ func (it *iter) Map(f MapFunc) *iter {
 	return newIter(newitem)
 }
 
-func (it *iter) Each(f EachFunc) {
+func (it *iter) each(f EachFunc) {
 	defer func() {
 		if ag, ok := it.item.(Rewinder); ok {
 			ag.Rewind()
@@ -63,7 +64,7 @@ func (it *iter) Each(f EachFunc) {
 	}
 }
 
-func (it *iter) Every(f EveryFunc) *iter {
+func (it *iter) every(f EveryFunc) *iter {
 	newitem, err := it.item.New()
 	if err != nil {
 		panic(err)
@@ -79,7 +80,7 @@ func (it *iter) Every(f EveryFunc) *iter {
 	return newIter(newitem)
 }
 
-func (it *iter) Or(f FilterFunc, this interface{}) *iter {
+func (it *iter) or(f FilterFunc, this interface{}) *iter {
 	newitem, err := it.item.New()
 	if err != nil {
 		panic(err)
@@ -99,7 +100,7 @@ func (it *iter) Or(f FilterFunc, this interface{}) *iter {
 	return newIter(newitem)
 }
 
-func (it *iter) Into(target Iterable, as ConvertFunc) *iter {
+func (it *iter) into(target Iterable, as ConvertFunc) *iter {
 	if resetter, ok := target.(Resetter); ok {
 		resetter.Reset()
 	}
@@ -116,7 +117,7 @@ func (it *iter) Into(target Iterable, as ConvertFunc) *iter {
 	return newIter(target)
 }
 
-func (it *iter) From(other Iterable, as ConvertFunc) *iter {
+func (it *iter) from(other Iterable, as ConvertFunc) *iter {
 	var newitem Iterable
 	var newit *iter
 	var err error
@@ -144,23 +145,37 @@ func (it *iter) From(other Iterable, as ConvertFunc) *iter {
 	return newit
 }
 
-func (it *iter) Nth(n int) interface{} {
-	defer func() {
-		if ag, ok := it.item.(Rewinder); ok {
-			ag.Rewind()
-		}
-	}()
+func (it *iter) advanceBy(n int) (int, bool) {
+	var more bool
 
-	for {
-		i, v, more := it.item.(Enumerator).Enumerate()
+	for i := 0; i < n; i++ {
+		_, more = it.item.Next()
 		if !more {
 			break
 		}
-		if i == n {
-			return v
-		}
+		it.size++
 	}
-	return nil
+
+	idx := it.size - 1
+	if idx <= 0 {
+		idx = 0
+	}
+	return idx, more
+}
+
+func (it *iter) count() int {
+	defer func() {
+		if ag, ok := it.item.(Rewinder); ok {
+			ag.Rewind()
+			it.size = 0
+		}
+	}()
+
+	var more = true
+	for more {
+		_, more = it.advanceBy(1)
+	}
+	return it.size
 }
 
 // An internal Iterable impl for []int,
