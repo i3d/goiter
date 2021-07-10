@@ -1,4 +1,4 @@
-# goiter v0.1.0
+# goiter v0.1.1
 
 An Iterator API that inspired from Rust's Iterator Trait. [WIP]
 
@@ -13,3 +13,5 @@ A few notes for this API:
 🩸 Despite its small size, the API is already quite powerful within what it is capable of (see some examples in tests).
 
 🩸 Go's abstraction is not without a cost. This Iterator's performance is not on par with the plain old for loop version ( See benchmarks ). If you absolutely care about performance, you probably should look somewhere else. The good part is it does not have any external dependencies, it uses no reflect APIs of any sort. I reasonably believe that once the Go compiler is able to generate machine code directly from generic type system, the performance shall be a lot better (e.g. all runtime type cast would go away).
+
+### TODO: add examples in go doc.
