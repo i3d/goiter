@@ -164,10 +164,174 @@ func TestCount(t *testing.T) {
 		})
 	}
 
-	it := New(FromStrings([]string{"a"}))
-	n := it.Count()
-	m := it.Count()
-	if n != m {
-		t.Errorf("Count multiple times yield invalid value. First time: %d, second time: %d", n, m)
+	t.Run("multi", func(t *testing.T) {
+		// Count is rewinds for an Interable that implements Rewinder.
+		it := New(FromStrings([]string{"a"}))
+		n := it.Count()
+		m := it.Count()
+		if n != m {
+			t.Errorf("Count multiple times yield invalid value. First time: %d, second time: %d", n, m)
+		}
+
+		it = New(FromStrings([]string{"a", "b"}))
+		newit := it.Filter(func(v interface{}) bool { return v.(string) == "a" })
+		c := newit.Count()
+		if c != 1 {
+			t.Errorf("Count after mutation function yields wrong value, got %d want 1", c)
+		}
+	})
+}
+
+func TestFunctions(t *testing.T) {
+
+	tests := []struct {
+		desc    string
+		it      *Iter
+		run     func(it *Iter) *Iter
+		check   func(src, dst *Iter) error
+		wantErr bool
+	}{
+		{
+			"Filter-normal",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return v.(string) == "a" }) },
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 1 || o[0] != "a" {
+					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{\"a\"}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Filter-empty",
+			New(FromStrings([]string{})),
+			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return v.(string) == "a" }) },
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 0 {
+					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{nil}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Filter-everything",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return len(v.(string)) == 2 }) },
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 0 {
+					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{nil}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Filter-nothing",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return len(v.(string)) == 1 }) },
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 2 || o[0] != "a" || o[1] != "b" {
+					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{\"a\", \"b\"}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Map-normal",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter {
+				return it.Map(func(v interface{}) interface{} { return strings.ToUpper(v.(string)) })
+			},
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 2 || o[0] != "A" || o[1] != "B" {
+					return fmt.Errorf("Map %#+v incorrect. got: %#+v, want data []string{\"A\", \"B\"}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Map-conditional",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter {
+				return it.Map(func(v interface{}) interface{} {
+					if v.(string) == "a" {
+						return strings.ToUpper(v.(string))
+					}
+					return v
+				})
+			},
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 2 || o[0] != "A" || o[1] != "b" {
+					return fmt.Errorf("Map %#+v incorrect. got: %#+v, want data []string{\"A\", \"b\"}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Every-even",
+			New(FromStrings([]string{"a", "b", "c", "d"})),
+			func(it *Iter) *Iter {
+				return it.Every(func(i int, v interface{}) interface{} {
+					if i%2 == 0 {
+						return strings.ToUpper(v.(string))
+					}
+					return v
+				})
+			},
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 4 || o[0] != "A" || o[1] != "b" || o[2] != "C" || o[3] != "d" {
+					return fmt.Errorf("Every %#+v incorrect. got: %#+v, want data []string{\"A\", \"b\", \"C\", \"d\"}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Or-strconv-fail",
+			New(FromStrings([]string{"a", "1", "c", "2"})),
+			func(it *Iter) *Iter {
+				return it.Or(func(v interface{}) bool {
+					_, err := strconv.Atoi(v.(string))
+					return err == nil
+				}, "not a number")
+			},
+			func(src, dst *Iter) error {
+				o := dst.impl.item.(*IterStrings).data
+				if len(o) != 4 || o[0] != "not a number" || o[2] != "not a number" {
+					return fmt.Errorf("Or %#+v incorrect. got: %#+v, want data []string{\"not a number\", \"1\", \"not a number\", \"2\"}",
+						src.impl.item, dst.impl.item)
+				}
+				return nil
+			},
+			false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			it := tc.run(tc.it)
+			if err := tc.check(tc.it, it); (err != nil) != tc.wantErr {
+				t.Error(err)
+			}
+		})
 	}
 }
