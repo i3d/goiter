@@ -285,6 +285,42 @@ func (it *Iter) Each(f EachFunc) {
 	it.impl.each(f)
 }
 
+// First returns the first item match the given predicate.
+// First is a shortcut as it will stop immeidately once the
+// matching item is found.
+//
+// The int points to the index of that item if found.
+// The bool indicates whether there is a match at all.
+// When bool is false, int and interface{} are all meaningless.
+//
+// First requires the underlying Iterable als be an Enumerator.
+//
+// First consumes the Iterable until the point that the matching
+// item is found. If nothing found, the entire Iterable will be
+// consumed. If an Iterable is a Rewinder, then Rewind has to be
+// called explicitly.
+// TODO: add tests, add example.
+func (it *Iter) First(f FilterFunc) (int, interface{}, bool) {
+	return it.impl.first(f)
+}
+
+// Last returns the last item match the given predicate.
+// Last always consumes the entire Iterable.
+//
+// Same as First, Last does not call Rewind even if the
+// underlying Iterable is a Rewinder. The caller has to
+// call Rewind explicitly if desired.
+//
+// The int points to the index of that item if found.
+// The bool indicates whether there is a match at all.
+// When bool is false, int and interface{} are all meaningless.
+//
+// First requires the underlying Iterable als be an Enumerator.
+// TODO: add tests, add example.
+func (it *Iter) Last(f FilterFunc) (int, interface{}, bool) {
+	return it.impl.last(f)
+}
+
 // Into converts self Iterable with underlying type T to another
 // Iterable with underlying type U.
 // If other is a Resetter, then Reset will be called before the

@@ -178,6 +178,44 @@ func (it *iter) count() int {
 	return it.size
 }
 
+func (it *iter) first(f FilterFunc) (int, interface{}, bool) {
+	var i int
+	var v interface{}
+	var more = true
+
+	// NOTE: consider implementing faster search algorithm.
+	for {
+		i, v, more = it.item.(Enumerator).Enumerate()
+		if !more {
+			break
+		}
+		if f(v) {
+			break
+		}
+	}
+	return i, v, more
+}
+
+func (it *iter) last(f FilterFunc) (int, interface{}, bool) {
+	var idx int
+	var seen interface{}
+	var found bool
+
+	// NOTE: consider implementing faster search algorithm.
+	for {
+		i, v, more := it.item.(Enumerator).Enumerate()
+		if !more {
+			break
+		}
+		if f(v) {
+			found = true
+			seen = v
+			idx = i
+		}
+	}
+	return idx, seen, found
+}
+
 // An internal Iterable impl for []int,
 // used for Into/From conversion tests.
 type iterInts struct {
