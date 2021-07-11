@@ -196,7 +196,7 @@ func TestFunctions(t *testing.T) {
 			New(FromStrings([]string{"a", "b"})),
 			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return v.(string) == "a" }) },
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 1 || o[0] != "a" {
 					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{\"a\"}",
 						src.impl.item, dst.impl.item)
@@ -210,7 +210,7 @@ func TestFunctions(t *testing.T) {
 			New(FromStrings([]string{})),
 			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return v.(string) == "a" }) },
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 0 {
 					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{nil}",
 						src.impl.item, dst.impl.item)
@@ -224,7 +224,7 @@ func TestFunctions(t *testing.T) {
 			New(FromStrings([]string{"a", "b"})),
 			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return len(v.(string)) == 2 }) },
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 0 {
 					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{nil}",
 						src.impl.item, dst.impl.item)
@@ -238,7 +238,7 @@ func TestFunctions(t *testing.T) {
 			New(FromStrings([]string{"a", "b"})),
 			func(it *Iter) *Iter { return it.Filter(func(v interface{}) bool { return len(v.(string)) == 1 }) },
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 2 || o[0] != "a" || o[1] != "b" {
 					return fmt.Errorf("Filter %#+v incorrect. got: %#+v, want data []string{\"a\", \"b\"}",
 						src.impl.item, dst.impl.item)
@@ -254,7 +254,7 @@ func TestFunctions(t *testing.T) {
 				return it.Map(func(v interface{}) interface{} { return strings.ToUpper(v.(string)) })
 			},
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 2 || o[0] != "A" || o[1] != "B" {
 					return fmt.Errorf("Map %#+v incorrect. got: %#+v, want data []string{\"A\", \"B\"}",
 						src.impl.item, dst.impl.item)
@@ -275,7 +275,7 @@ func TestFunctions(t *testing.T) {
 				})
 			},
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 2 || o[0] != "A" || o[1] != "b" {
 					return fmt.Errorf("Map %#+v incorrect. got: %#+v, want data []string{\"A\", \"b\"}",
 						src.impl.item, dst.impl.item)
@@ -296,7 +296,7 @@ func TestFunctions(t *testing.T) {
 				})
 			},
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 4 || o[0] != "A" || o[1] != "b" || o[2] != "C" || o[3] != "d" {
 					return fmt.Errorf("Every %#+v incorrect. got: %#+v, want data []string{\"A\", \"b\", \"C\", \"d\"}",
 						src.impl.item, dst.impl.item)
@@ -315,7 +315,7 @@ func TestFunctions(t *testing.T) {
 				}, "not a number")
 			},
 			func(src, dst *Iter) error {
-				o := dst.impl.item.(*IterStrings).data
+				o := dst.Collect().([]string)
 				if len(o) != 4 || o[0] != "not a number" || o[2] != "not a number" {
 					return fmt.Errorf("Or %#+v incorrect. got: %#+v, want data []string{\"not a number\", \"1\", \"not a number\", \"2\"}",
 						src.impl.item, dst.impl.item)

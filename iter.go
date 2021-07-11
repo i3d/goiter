@@ -99,6 +99,12 @@ type Fromer interface {
 	From(Iterable, ConvertFunc) *Iter
 }
 
+// FromIter converts an Iterable of type T back to T.
+// The Collect API requires an Iterable to be a FromIter.
+type FromIter interface {
+	To() interface{}
+}
+
 // FilterFunc runs a function with an given item and return a bool
 // indicates some sort of predicates.
 type FilterFunc func(interface{}) bool
@@ -216,7 +222,7 @@ func (it *Iter) Or(f FilterFunc, this interface{}) *Iter {
 // size of the Iterable.
 //
 // Example:
-//   it := New(FromStrings([]string{"a,", "b"}))
+//   it := New(FromStrings([]string{"a", "b"}))
 //   it.Advance(1) => 0, true
 //   it.Advance(1) => 1, true
 //   it.Advance(1) => 1, false
@@ -231,7 +237,7 @@ func (it *Iter) Advance(n int) (int, bool) {
 // be consumed again immeidately).
 //
 // Example:
-//   it := New(FromStrings([]string{"a,", "b"}))
+//   it := New(FromStrings([]string{"a", "b"}))
 //   it.Count() => 2
 //   it.Count() => 2
 //   it.Filter(func(v interface{}) bool {return v.(string) == "a"}).Count() => 1
@@ -239,11 +245,15 @@ func (it *Iter) Count() int {
 	return it.impl.count()
 }
 
-// Nth returns the n'th item from the Iterable.
+// Nth returns the n'th item (0-based) from the Iterable.
 // If N isn't in the valid iteration scope, nil will be returned.
 // If the Iterable is also a Rewinder, then after retrieving
 // the Nth item, the Iterable will be rewinded and assumed to be
 // reusable immeidately.
+//
+// Example:
+//   it := New(FromStrings([]string{"a", "b"}))
+//   it.Nth(1) => "b" (0-based index)
 func (it *Iter) Nth(n int) interface{} {
 	defer func() {
 		if ag, ok := it.impl.item.(Rewinder); ok {
@@ -262,6 +272,15 @@ func (it *Iter) Nth(n int) interface{} {
 // If the Iterable is also a Rewinder, then after iterating
 // all items, the Iterable will be rewinded and assumed to be
 // reusable immeidately.
+//
+// Example:
+//   it := New(FromStrings([]string{"a", "b"}))
+//   it.Each(func(v interface{}) {
+//      fmt.Prinln(v)
+//   })
+//   produces an output of:
+//      a
+//      b
 func (it *Iter) Each(f EachFunc) {
 	it.impl.each(f)
 }
@@ -270,6 +289,16 @@ func (it *Iter) Each(f EachFunc) {
 // Iterable with underlying type U.
 // If other is a Resetter, then Reset will be called before the
 // conversion, otherwise assume other is clean.
+//
+// Example:
+// (NOTE: in this example, the NewInts does not exist,
+//  but you get the idea)
+//   it := New(FromStrings([]string{"1", "2"}))
+//   it.Into(NewInts(), func(v interface{}) interface{} {
+//           i, _ := strconv.Atoi(v.(string))
+// 					 return i
+//   })
+//   should produce a []int{1, 2}
 func (it *Iter) Into(target Iterable, as ConvertFunc) *Iter {
 	return newFromImpl(it.impl.into(target, as))
 }
@@ -277,8 +306,42 @@ func (it *Iter) Into(target Iterable, as ConvertFunc) *Iter {
 // From converts other Iterable with type U to self with type T.
 // If self is a Resetter, then Reset will be called, otherwise,
 // assume clean.
+//
+// Example:
+// (NOTE: in this example, the FromInts does not exist,
+//  but you get the idea)
+//   it := New(NewIterStrings())
+//   it.From(FromInts([]int{1, 2}), func(v interface{}) interface{} {
+//      return fmt.Sprintf("%d", v.(int))
+//   })
+//   should produce a []string{"1", "2"}
 func (it *Iter) From(other Iterable, as ConvertFunc) *Iter {
 	return newFromImpl(it.impl.from(other, as))
+}
+
+// Collect returns the embedded source data back, typically as
+// the last operation after all mutations/transformations are
+// done from the Iterator.
+//
+// Collect requires the Iterable implements the FromIter interface,
+// otherwise, this call will panic.
+//
+// Collect itself does not consume the Iterator, the whatever
+// mutations/transformations done for the Iterator have
+// consumed the Iterator already, Collect nearly just returns
+// the raw result data.
+//
+// Example:
+//   out :=
+//      New(FromStrings([]string{"a", "b"})).
+//        Map(func(v interface{}) interface{} {
+//           return strings.ToUpper(v.(string))
+//        }).
+//        Collect()
+//   out => []string{"A", "B"}
+func (it *Iter) Collect() interface{} {
+	fromit := it.impl.item.(FromIter)
+	return fromit.To()
 }
 
 // An Iterable for []string, ready to be consume by an Iterator
@@ -351,6 +414,11 @@ func (is *IterStrings) Enumerate() (int, interface{}, bool) {
 		return is.idx, is.data[is.idx], true
 	}
 	return -1, nil, false
+}
+
+// To returns the underlying []string back.
+func (is *IterStrings) To() interface{} {
+	return is.data
 }
 
 // String implements the Stringer interface for IterStrings.
