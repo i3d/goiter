@@ -323,6 +323,126 @@ func TestFunctions(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"Chain-normal",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter {
+				return it.Chain(FromStrings([]string{"1", "2"}))
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]string)
+				if len(o) != 4 || o[0] != "a" || o[1] != "b" || o[2] != "1" || o[3] != "2" {
+					return fmt.Errorf("Chain Iterable of []string{'a', 'b'} and []string{'1', '2'} produced %#+v, but want []string{'a', 'b', '1', '2'}", o)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Chain-empty",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter {
+				return it.Chain(FromStrings([]string{}))
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]string)
+				if len(o) != 2 || o[0] != "a" || o[1] != "b" {
+					return fmt.Errorf("Chain Iterable of []string{'a', 'b'} and []string{} produced %#+v, but want []string{'a', 'b'}", o)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Chain-from-empty",
+			New(FromStrings([]string{})),
+			func(it *Iter) *Iter {
+				return it.Chain(FromStrings([]string{"a", "b"}))
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]string)
+				if len(o) != 2 || o[0] != "a" || o[1] != "b" {
+					return fmt.Errorf("Chain Iterable of []string{} and []string{'a', 'b'} produced %#+v, but want []string{'a', 'b'}", o)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Chain-multi",
+			New(FromStrings([]string{"a"})),
+			func(it *Iter) *Iter {
+				return it.Chain(FromStrings([]string{"b"})).Chain(FromStrings([]string{"c"}))
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]string)
+				if len(o) != 3 || o[0] != "a" || o[1] != "b" || o[2] != "c" {
+					return fmt.Errorf("Chain Iterable of []string{'a'} and []string{'b'} and []string{'c'} produced %#+v, but want []string{'a', 'b', 'c'}", o)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Zip-normal",
+			New(FromStrings([]string{"a"})),
+			func(it *Iter) *Iter {
+				return it.Zip(FromStrings([]string{"b"}))
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]*Pair)
+				if len(o) != 1 || o[0].X.(string) != "a" || o[0].Y.(string) != "b" {
+					return fmt.Errorf("Zip Iterable of []string{'a'} and []string{'b'} produced %#+v, but want Pair{'a', 'b'}", o)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Zip-longer",
+			New(FromStrings([]string{"a"})),
+			func(it *Iter) *Iter {
+				return it.Zip(FromStrings([]string{"b", "c"}))
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]*Pair)
+				if len(o) != 1 || o[0].X.(string) != "a" || o[0].Y.(string) != "b" {
+					return fmt.Errorf("Zip Iterable of []string{'a'} and []string{'b', 'c'} produced %#+v, but want Pair{'a', 'b'}", o)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Zip-shorter",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) *Iter {
+				return it.Zip(FromStrings([]string{"c"}))
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]*Pair)
+				if len(o) != 1 || o[0].X.(string) != "a" || o[0].Y.(string) != "c" {
+					return fmt.Errorf("Zip Iterable of []string{'a', 'b'} and []string{'c'} produced %#+v, but want Pair{'a', 'c'}", o)
+				}
+				return nil
+			},
+			false,
+		},
+		{
+			"Zip-two-types",
+			New(FromStrings([]string{"age"})),
+			func(it *Iter) *Iter {
+				return it.Zip(&iterInts{[]int{10}, -1})
+			},
+			func(src, dst *Iter) error {
+				o := dst.Collect().([]*Pair)
+				if len(o) != 1 || o[0].X.(string) != "age" || o[0].Y.(int) != 10 {
+					return fmt.Errorf("Zip Iterable of []string{'age'} and []int{10} produced %#+v, but want Pair{'age', 10}", o)
+				}
+				return nil
+			},
+			false,
+		},
 	}
 
 	for _, tc := range tests {

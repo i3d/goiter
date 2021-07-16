@@ -216,6 +216,112 @@ func (it *iter) last(f FilterFunc) (int, interface{}, bool) {
 	return idx, seen, found
 }
 
+func (it *iter) chain(other Iterable) *iter {
+	newit, err := it.item.New()
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		v, more := it.item.Next()
+		if !more {
+			break
+		}
+		newit.Add(v)
+	}
+
+	for {
+		v, more := other.Next()
+		if !more {
+			break
+		}
+		newit.Add(v)
+	}
+
+	return newIter(newit)
+}
+
+func (it *iter) zip(other Iterable) *iter {
+	np, _ := newPairs()
+
+	for {
+		v1, more1 := it.item.Next()
+		v2, more2 := other.Next()
+		if !more1 || !more2 {
+			break
+		}
+		p := &Pair{v1, v2}
+		np.Add(p)
+	}
+	return newIter(np)
+}
+
+type pairs struct {
+	idx  int
+	data []*Pair
+	size int
+}
+
+func newPairs() (Iterable, error) {
+	return &pairs{idx: -1}, nil
+}
+
+func (*pairs) New() (Iterable, error) {
+	return newPairs()
+}
+
+func (ps *pairs) Next() (interface{}, bool) {
+	ps.idx++
+	if ps.idx < ps.size {
+		return ps.data[ps.idx], true
+	}
+	return nil, false
+}
+
+func (ps *pairs) Rewind() {
+	ps.idx = -1
+}
+
+func (ps *pairs) Reset() {
+	ps.Rewind()
+	ps.data = nil
+	ps.size = 0
+}
+
+// Add inserts an string as an interface into the pairs struct.
+func (ps *pairs) Add(obj interface{}) {
+	input := obj.(*Pair)
+	ps.data = append(ps.data, input)
+	ps.size++
+}
+
+// Enumerate returns a pair of {index, string as interface}
+// as well as a bool to indicate whether there ps more to go.
+func (ps *pairs) Enumerate() (int, interface{}, bool) {
+	ps.idx++
+	if ps.idx < ps.size {
+		return ps.idx, ps.data[ps.idx], true
+	}
+	return -1, nil, false
+}
+
+// To returns the underlying []*Pair back.
+func (ps *pairs) To() interface{} {
+	return ps.data
+}
+
+// String implements the Stringer interface for pairs.
+func (ps *pairs) String() string {
+	return fmt.Sprintf("%+v", ps.data)
+}
+
+// String provides a stringify impl for Pair.
+func (p *Pair) String() string {
+	return fmt.Sprintf("{%+v, %+v}", p.X, p.Y)
+}
+
+// === internal for testing ===
+
 // An internal Iterable impl for []int,
 // used for Into/From conversion tests.
 type iterInts struct {

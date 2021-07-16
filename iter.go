@@ -125,6 +125,19 @@ type EachFunc func(interface{})
 // a new (or same) item for that index.
 type EveryFunc func(int, interface{}) interface{}
 
+// Pair is a generic concept to hold two values {T, U}, where
+// {T, U} could either be the same or different types, typically
+// coming from two different Iterables.
+//
+// Pair is the outcome Iterator item of the Zip API.
+// In other words, Zip(I<A>, I<B>) => I<Pair<X=A,Y=B>>
+// X is assigned to the value from the first Iterable whereas
+// Y is assigned to the value from the second Iterable.
+type Pair struct {
+	X interface{}
+	Y interface{}
+}
+
 // Iter is an Iterator implements common utility functions
 // for an Iterable.
 //
@@ -278,7 +291,7 @@ func (it *Iter) Nth(n int) interface{} {
 //   it.Each(func(v interface{}) {
 //      fmt.Prinln(v)
 //   })
-//   produces an output of:
+// produces an output of:
 //      a
 //      b
 func (it *Iter) Each(f EachFunc) {
@@ -299,7 +312,14 @@ func (it *Iter) Each(f EachFunc) {
 // item is found. If nothing found, the entire Iterable will be
 // consumed. If an Iterable is a Rewinder, then Rewind has to be
 // called explicitly.
-// TODO: add tests, add example.
+//
+// Example:
+//   it := New(FromStrings([]string{"a", "1"}))
+//   i, v, found := it.First(func(v interface{}) bool {
+//       _, err := strconv.Atoi(v.(string))
+//       return err == nil
+//   })
+// produces i=1, v="1", found=true
 func (it *Iter) First(f FilterFunc) (int, interface{}, bool) {
 	return it.impl.first(f)
 }
@@ -315,10 +335,52 @@ func (it *Iter) First(f FilterFunc) (int, interface{}, bool) {
 // The bool indicates whether there is a match at all.
 // When bool is false, int and interface{} are all meaningless.
 //
-// First requires the underlying Iterable als be an Enumerator.
-// TODO: add tests, add example.
+// Last requires the underlying Iterable als be an Enumerator.
+//
+// Example:
+//   it := New(FromStrings([]string{"a", "1"}))
+//   i, v, found := it.Last(func(v interface{}) bool {
+//       _, err := strconv.Atoi(v.(string))
+//       return err == nil
+//   })
+// produces i=1, v="1", found=true
 func (it *Iter) Last(f FilterFunc) (int, interface{}, bool) {
 	return it.impl.last(f)
+}
+
+// Chain combines two Iterables with the same type T
+// into a new Iterator.
+// Orders are preserved as they are added.
+//
+// Example:
+//   it := New(FromStrings([]string{"a"}))
+//   newit := it.Chain(FromStrings([]string{"b"}))
+// produces []string{"a", "b"}
+func (it *Iter) Chain(other Iterable) *Iter {
+	return newFromImpl(it.impl.chain(other))
+}
+
+// Zip stitches two Iterables into one with item type of
+// *Pair{X, Y} where {X,Y} can either be the same type T
+// or different types {T, U}.
+//
+// Pair.X is a value coming from the first Iterable (
+// typically the Iterator calls the Zip API) and Pair.Y comes
+// from the 'other' Iterable.
+//
+// Zip stops at the first Iterable where no more item can be
+// produced. In other words, the Iterator produced by Zip only
+// contains len(item) where len is the shortest len b/w the
+// two Iterables.
+//
+// Example:
+// (NOTE: in this example, the FromInts does not exist,
+//  but you get the idea)
+//   it := New(FromStrings([]string{"ago"}))
+//   newit := it.Zip(FromInts([]int{10}))
+// produces Pair{X: "age", Y: 10}
+func (it *Iter) Zip(other Iterable) *Iter {
+	return newFromImpl(it.impl.zip(other))
 }
 
 // Into converts self Iterable with underlying type T to another
