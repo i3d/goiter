@@ -197,7 +197,7 @@ func (it *iter) first(f FilterFunc) (int, interface{}, bool) {
 }
 
 func (it *iter) last(f FilterFunc) (int, interface{}, bool) {
-	var idx int
+	var idx int = -1
 	var seen interface{}
 	var found bool
 

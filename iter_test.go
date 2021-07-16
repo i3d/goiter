@@ -183,7 +183,6 @@ func TestCount(t *testing.T) {
 }
 
 func TestFunctions(t *testing.T) {
-
 	tests := []struct {
 		desc    string
 		it      *Iter
@@ -331,6 +330,121 @@ func TestFunctions(t *testing.T) {
 			it := tc.run(tc.it)
 			if err := tc.check(tc.it, it); (err != nil) != tc.wantErr {
 				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestFirstLast(t *testing.T) {
+	tests := []struct {
+		desc      string
+		it        *Iter
+		run       func(*Iter) (int, interface{}, bool)
+		wantIdx   int
+		wantValue interface{}
+		wantMore  bool
+	}{
+		{
+			"First-normal",
+			New(FromStrings([]string{"a", "1", "b", "2"})),
+			func(it *Iter) (int, interface{}, bool) {
+				return it.First(func(v interface{}) bool {
+					_, err := strconv.Atoi(v.(string))
+					return err == nil
+				})
+			},
+			1,
+			"1",
+			true,
+		},
+		{
+			"First-empty",
+			New(FromStrings([]string{})),
+			func(it *Iter) (int, interface{}, bool) {
+				return it.First(func(v interface{}) bool {
+					_, err := strconv.Atoi(v.(string))
+					return err == nil
+				})
+			},
+			-1,
+			nil,
+			false,
+		},
+		{
+			"First-nomatch",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) (int, interface{}, bool) {
+				return it.First(func(v interface{}) bool {
+					_, err := strconv.Atoi(v.(string))
+					return err == nil
+				})
+			},
+			-1,
+			nil,
+			false,
+		},
+		{
+			"Last-normal",
+			New(FromStrings([]string{"a", "1", "b", "2"})),
+			func(it *Iter) (int, interface{}, bool) {
+				return it.Last(func(v interface{}) bool {
+					_, err := strconv.Atoi(v.(string))
+					return err == nil
+				})
+			},
+			3,
+			"2",
+			true,
+		},
+		{
+			"Last-empty",
+			New(FromStrings([]string{})),
+			func(it *Iter) (int, interface{}, bool) {
+				return it.Last(func(v interface{}) bool {
+					_, err := strconv.Atoi(v.(string))
+					return err == nil
+				})
+			},
+			-1,
+			nil,
+			false,
+		},
+		{
+			"Last-nomatch",
+			New(FromStrings([]string{"a", "b"})),
+			func(it *Iter) (int, interface{}, bool) {
+				return it.Last(func(v interface{}) bool {
+					_, err := strconv.Atoi(v.(string))
+					return err == nil
+				})
+			},
+			-1,
+			nil,
+			false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			idx, v, more := tc.run(tc.it)
+			if idx != tc.wantIdx {
+				t.Errorf("%s got item index of %d but want: %d", tc.desc, idx, tc.wantIdx)
+			}
+
+			if (v == nil) && tc.wantValue != nil {
+				t.Errorf("%s got item nil value: but want: %v", tc.desc, tc.wantValue)
+			}
+
+			if (v != nil) && tc.wantValue == nil {
+				t.Errorf("%s got item value: %v but want nil value.", tc.desc, v)
+			}
+
+			if v != nil && v.(string) != tc.wantValue.(string) {
+				t.Errorf("%s got item value: %v but want: %v", tc.desc, v, tc.wantValue)
+			}
+
+			if more != tc.wantMore {
+				t.Errorf("%s got more:%t but want: %t", tc.desc, more, tc.wantMore)
 			}
 		})
 	}
