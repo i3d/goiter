@@ -84,6 +84,10 @@ type Resetter interface {
 type Intoer interface {
 	// Into assumes a newly initialized target Iterable
 	// as its first argument.
+	//
+	// If ConvertFunc returns a non-nil error, then
+	// Add is not performed, in other words, Into treats
+	// error as a filter condition.
 	Into(Iterable, ConvertFunc) *Iter
 }
 
@@ -96,6 +100,10 @@ type Intoer interface {
 type Fromer interface {
 	// Fromer assumes the Iterable from its first argument
 	// is srouce Iterable to convert from.
+	//
+	// If ConvertFunc returns a non-nil error, then
+	// Add is not performed, in other words, From treats
+	// error as a filter condition.
 	From(Iterable, ConvertFunc) *Iter
 }
 
@@ -113,9 +121,10 @@ type FilterFunc func(interface{}) bool
 // (or same) item with the same underlying type.
 type MapFunc func(interface{}) interface{}
 
-// ConvertFunc likes the MapFunc but converts type T to U or
-// back and forth.
-type ConvertFunc func(interface{}) interface{}
+// ConvertFunc likes the MapFunc but converts type T to a different
+// type U or back and forth. error indicates whether such
+// transformation is successful.
+type ConvertFunc func(interface{}) (interface{}, error)
 
 // EachFunc runs a function on a given item without changin the state
 // of that item.

@@ -110,8 +110,9 @@ func (it *iter) into(target Iterable, as ConvertFunc) *iter {
 		if !more {
 			break
 		}
-		newelm := as(elm)
-		target.Add(newelm)
+		if newelm, err := as(elm); err == nil {
+			target.Add(newelm)
+		}
 	}
 
 	return newIter(target)
@@ -139,8 +140,9 @@ func (it *iter) from(other Iterable, as ConvertFunc) *iter {
 		if !more {
 			break
 		}
-		thiselm := as(elm)
-		newitem.Add(thiselm)
+		if thiselm, err := as(elm); err == nil {
+			newitem.Add(thiselm)
+		}
 	}
 	return newit
 }

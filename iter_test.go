@@ -46,8 +46,8 @@ func TestFrom(t *testing.T) {
 	ints := &iterInts{d, -1}
 
 	s := New(NewIterStrings())
-	s.From(ints, func(v interface{}) interface{} {
-		return fmt.Sprintf("%d", v)
+	s.From(ints, func(v interface{}) (interface{}, error) {
+		return fmt.Sprintf("%d", v), nil
 	}).Each(func(v interface{}) {
 		fmt.Printf("%s\n", v)
 	})
@@ -56,16 +56,22 @@ func TestFrom(t *testing.T) {
 func TestInto(t *testing.T) {
 	s := New(FromStrings([]string{"1", "2", "3"}))
 	ints := &iterInts{nil, -1}
-	s.Into(ints, func(v interface{}) interface{} {
-		i, err := strconv.Atoi(v.(string))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return i
+	s.Into(ints, func(v interface{}) (interface{}, error) {
+		return strconv.Atoi(v.(string))
 	})
 
 	if ints.data[0] != 1 || ints.data[1] != 2 || ints.data[2] != 3 {
 		t.Errorf("Into conversion is invalid, got: %+v, want: []int{1,2,3}", ints.data)
+	}
+
+	s = New(FromStrings([]string{"1", "ab", "3"}))
+	ints = &iterInts{nil, -1}
+	s.Into(ints, func(v interface{}) (interface{}, error) {
+		return strconv.Atoi(v.(string))
+	})
+
+	if len(ints.data) != 2 || ints.data[0] != 1 || ints.data[1] != 3 {
+		t.Errorf("Into conversion is invalid, got: %+v, want: []int{1,3}", ints.data)
 	}
 }
 
