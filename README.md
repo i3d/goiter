@@ -2,6 +2,9 @@
 
 An Iterator API that inspired from Rust's Iterator Trait. [WIP]
 
+NOTE: Since Go 1.18, language level generics is available, so there is much high chance (and arguably better way) to implement Iterators now. And [there you go](https://github.com/golang/go/discussions/54245)
+
+
 A few notes for this API:
 
 🩸 The design of this Iterator API is heavily inspired by the 🦀Rust's Iterator trait. It tries to bring some familiar mindsets b/w Go and Rust. You could think of it as a study series, or design pattern research, or whatever.
